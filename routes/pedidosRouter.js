@@ -48,8 +48,8 @@ router.post('/en/', async (req, res) => {
 });
 // enviar pedidos para que se gestione con normalidad
 router.post('/', async (req, res) => {
-    const { pedido } = req.body;
-    await service.enviarPedido(pedido);
+    const { idPedido } = req.body;
+    await service.enviarPedido(idPedido);
     res.json({status:'se ha enviado el pedido con exito'})
 });
 //actualizar observacion delpedidoterminal

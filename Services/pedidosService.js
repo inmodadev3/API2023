@@ -1,5 +1,6 @@
 const mysqlConnection = require('../DataBases/cnxDash.js');
 const sqlConnection = require('../DataBases/cnxHgi');
+const { CalcularTotal, consultarDetallePedidosTerminal, CambiarEstadoPedidoTerminal } = require('../utils/Helpers.js');
 
 class PedidosService {
 
@@ -60,8 +61,10 @@ class PedidosService {
 
   async ActualizarCamposProducto(data) {
     return new Promise((resolve, reject) => {
-      mysqlConnection.query(`update tbldetallepedidosterminal set intcantidad = ${data.intCantidad} ,strObservacion ='${data.strObservacion}', strColor = '${data.strColor}', strtalla ='${data.strTalla}'where intidpedido = ${data.intIdPedido} and stridproducto = '${data.strIdProducto}'`, (err, rows, fields) => {
+      mysqlConnection.query(`update tbldetallepedidosterminal set intcantidad = ${data.intCantidad} ,strObservacion ='${data.strObservacion}', strColor = '${data.strColor}', strtalla ='${data.strTalla}'where intidpedido = ${data.intIdPedido} and stridproducto = '${data.strIdProducto}'`, async(err, rows, fields) => {
         if (!err) {
+            let valorTotal = await CalcularTotal(data.intIdPedido)
+            mysqlConnection.query(`update tblpedidosTerminal set intValorTotal = ${valorTotal} where intIdPedido = ${data.intIdPedido}`);
           resolve();
         } else {
           reject(err);
@@ -72,7 +75,7 @@ class PedidosService {
   }
 
 
- 
+
 
   async EliminarPedidoTerminal(id) {
     return new Promise((resolve, reject) => {
@@ -106,17 +109,13 @@ class PedidosService {
   //   });
   // }
 
-  async EliminarDetallePedido(data){
-    return new Promise((resolve, reject) =>{
-      mysqlConnection.query(`delete from tbldetallepedidosterminal where intidpedido = ${data.intIdPedido} and stridproducto = '${data.strIdProducto}'`, (err, rows, fields ) =>{
+  async EliminarDetallePedido(data) {
+    return new Promise((resolve, reject) => {
+      mysqlConnection.query(`delete from tbldetallepedidosterminal where intidpedido = ${data.intIdPedido} and stridproducto = '${data.strIdProducto}'`, async(err, rows, fields) => {
         if (!err) {
-          mysqlConnection.query(`select intvalortotal as total  from tblpedidosTerminal where intIdPedido =${data.intIdPedido}`,(err, rows, fields) =>{
-          let intvalortotal = rows[0].total;
-          let valorTotal = intvalortotal - data.intPrecio;
-          console.log(valorTotal)
-          mysqlConnection.query(`update tblpedidosTerminal set intValorTotal = ${valorTotal} where intIdPedido = ${data.intIdPedido}`, (err, rows, fields) );
-          resolve();
-          });
+            let valorTotal = await CalcularTotal(data.intIdPedido)
+            mysqlConnection.query(`update tblpedidosTerminal set intValorTotal = ${valorTotal} where intIdPedido = ${data.intIdPedido}`);
+            resolve();
         } else {
           reject(err);
         }
@@ -133,7 +132,7 @@ class PedidosService {
   //   return new Promise((resolve, reject) => {
   //     console.log(data)
   //     const qryValorTotal = `select intvalortotal as total  from tblpedidosTerminal where intIdPedido =${data.intIdPedido} `;
-    
+
   //     mysqlConnection.query(qryValorTotal, (err, rows, fields) => {
   //       if (!err) {
   //         let intvalortotal = rows[0].total;
@@ -220,8 +219,8 @@ class PedidosService {
 
   async consultarPedidosVendedor(id) {
     return new Promise((resolve, reject) => {
-      mysqlConnection.query("select * from tblpedidos where stridvendedor = (?) and IntEstado = 4  order by intidpedido desc limit 10", [id], (err, rows, fields) => {
-        console.log(rows)
+      mysqlConnection.query("select * from tblpedidos where stridvendedor = (?) and IntEstado != -1  order by intidpedido desc limit 10", [id], (err, rows, fields) => {
+        /* console.log(rows) */
         if (!err) {
           resolve(rows);
         } else {
@@ -239,7 +238,6 @@ class PedidosService {
         if (!err) {
           const resultado = JSON.parse(JSON.stringify(rows[0][0]));
           const nropedido = resultado.strMensaje;
-          console.log(nropedido);
           resolve(nropedido);
         } else {
           reject(err);
@@ -305,29 +303,27 @@ class PedidosService {
     return new Promise((resolve, reject) => {
       // let strIdCliente = detalle.strIdCliente;
       // let strIdVendedor = detalle.strIdVendedor;
-      mysqlConnection.query(`select intvalortotal as total  from tblpedidosTerminal where intIdPedido ='${detalle.intIdPedido}' `, (err, rows, fields) => {
-        if (!err) {
-          let intvalortotal = rows[0].total;
-          console.log(intvalortotal)
-          let intPrecioProducto = 0;
-          intPrecioProducto = detalle.intCantidad * detalle.intPrecio;
-          let valorTotal = intvalortotal + intPrecioProducto;
           // let intIdPedido = JSON.parse(JSON.stringify(rows[0].intNroPedido));
-          const qryVrTotal = `update tblpedidosTerminal set intvalortotal = ${valorTotal} where intIdPedido = ${detalle.intIdPedido} `;
-          mysqlConnection.query(qryVrTotal, (err, rows, fields));
+          let intPrecioProducto = detalle.intCantidad * detalle.intPrecio;
           const query = "CALL SP_GuardarDetallePedidoTerminal(?, ?, ?, ?, ?, ?, ?, ?, ?, ? , ?)";
-          mysqlConnection.query(query, [detalle.intIdPedido, detalle.strIdProducto, detalle.strDecripcion, detalle.intCantidad, detalle.strUnidadMedida, detalle.strObservacion, detalle.intPrecio, intPrecioProducto, detalle.strTalla, detalle.strColor,detalle.strRutaImg], (err, rows, fields) => {
+          mysqlConnection.query(query, [detalle.intIdPedido, detalle.strIdProducto, detalle.strDecripcion, detalle.intCantidad, detalle.strUnidadMedida, detalle.strObservacion, detalle.intPrecio, intPrecioProducto, detalle.strTalla, detalle.strColor, detalle.strRutaImg], async(err, rows, fields) => {
             if (!err) {
-              resolve();
+              let valorTotal = await CalcularTotal(detalle.intIdPedido)
+              const qryVrTotal = `update tblpedidosTerminal set intvalortotal = ${valorTotal} where intIdPedido = ${detalle.intIdPedido} `;
+              mysqlConnection.query(qryVrTotal, (err, rows, fields)=>{
+                if(err){
+                  reject(err)
+                  return
+                }
+                resolve()
+              });
             } else {
               reject(err);
             }
           });
-        } else {
-          reject(err)
-        }
+
         //mysqlConnection.end();
-      });
+      
     });
   }
 
@@ -365,14 +361,54 @@ class PedidosService {
 
   }
 
-  async enviarPedido(pedido) {
-    console.log("desde SERVIVE --------", pedido)
-    return new Promise((resolve, reject) => {
-      const encabezado = pedido.encabezado;
-      const detalle = pedido.detalle;
-      console.log(encabezado)
-      const query = "CALL SP_GuardarEncabezadoPedido(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
-      const detquery = "CALL SP_GuardarDetallePedido(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+  async enviarPedido(idPedido) {
+    return new Promise(async(resolve, reject) => {
+      /* const encabezado = pedido.encabezado;
+      const detalle = pedido.detalle; */
+      let detalle = await consultarDetallePedidosTerminal(idPedido)
+      mysqlConnection.query(`SELECT * FROM tblpedidosterminal where intIdPedido = ${idPedido}`,(err,rows,fields)=>{
+        if(err){
+          reject(err)
+          return
+        }
+        const encabezado = rows[0];
+        
+        resolve()
+        const query = "CALL SP_GuardarEncabezadoPedido(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+        mysqlConnection.query(query, [encabezado.strIdVendedor, encabezado.strNombVendedor, encabezado.intIdPedido, encabezado.strIdCliente, encabezado.strNombCliente, encabezado.strCiudadCliente, encabezado.intValorTotal, encabezado.dtFechaFinalizacion, encabezado.intTipo, encabezado.intTipoPedido, encabezado.intCompania, encabezado.strObservacion, encabezado.strCorreoClienteAct, encabezado.strTelefonoClienteAct, encabezado.strCelularClienteAct, encabezado.strCiudadClienteAct, encabezado.strIdDependencia, encabezado.strNombreDependencia, 0],(err,rows,fields)=>{
+          if(err){
+            reject(err)
+            return
+          }
+          const resultado = JSON.parse(JSON.stringify(rows[0][0]));
+          const nropedido = resultado.strMensaje;
+          const detquery = "CALL SP_GuardarDetallePedido(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+
+          detalle.forEach(det => {
+            mysqlConnection.query(detquery, [nropedido, det.strIdProducto, det.strDescripcion, det.intCantidad, det.strUnidadMedida, det.strObservacion, det.intPrecio, det.intPrecioProducto, det.strTalla, det.strCol], (err, rows, fields) => {
+              if(err){
+                reject(err)
+                return;
+              }
+              CambiarEstadoPedidoTerminal(idPedido,2).then((response)=>{
+                if(response){
+                  resolve()
+                }else{
+                  reject(err)
+                }
+              }).catch((err)=>{
+                reject(err)
+              })
+            })
+          })
+
+        })
+      })
+
+
+      /* console.log(encabezado) */
+      /* 
+      
       mysqlConnection.query(query, [encabezado.strIdVendedor, encabezado.strNombVendedor, encabezado.strIdPedidoVendedor, encabezado.strIdCliente, encabezado.strNombCliente, encabezado.strCiudadCliente, encabezado.intValorTotal, encabezado.dtFechaFinalizacion, encabezado.intTipo, encabezado.intTipoPedido, encabezado.intCompania, encabezado.strObservacion, encabezado.strCorreoClienteAct, encabezado.strTelefonoClienteAct, encabezado.strCelularClienteAct, encabezado.strCiudadClienteAct, encabezado.strIdDependencia, encabezado.strNombreDependencia, encabezado.blEspera], (err, rows, fields) => {
         if (!err) {
           const resultado = JSON.parse(JSON.stringify(rows[0][0]));
@@ -402,7 +438,7 @@ class PedidosService {
           reject(err);
         }
         //mysqlConnection.end();
-      });
+      }); */
     });
   }
 
@@ -410,18 +446,6 @@ class PedidosService {
 
 module.exports = PedidosService;
 
-
-const CalcularTotal = (IntIdPedido) =>{
-  mysqlConnection.query("select intPrecio, intCantidad from tbldetallePedidosTerminal where intIdPedido = ?",[IntIdPedido],(err,fields,rows)=>{
-    let ArrProductos = rows
-    let totalPrecio = 0
-    for(const item of ArrProductos){
-      totalPrecio += item.IntPrecio
-    }
-    
-    "update tblPedidosTerminal set intValorTotal = totalPrecio where intIdpedido = ?",[IntIdPedido]
-  })
-}
 
 // const mysql = require('mysql');
 
