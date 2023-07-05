@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const PedidosService = require('../Services/pedidosService');
 const service = new PedidosService();
+const {GetCarritoPaginado} = require('../Services/v2/PedidosService')
 
 //Consultar productos asociados a pedidos 
 router.get('/:id/detalle', async (req, res) => {
@@ -43,7 +44,6 @@ router.post('/ref/', async (req, res) => {
 router.post('/en/', async (req, res) => {
     const { encabezado } = req.body;
     pedido =await service.GuardarEncabezadoPedidoTerminal(encabezado);
-    console.log(pedido)
     res.json({nroPedido:pedido})
 });
 // enviar pedidos para que se gestione con normalidad
@@ -58,7 +58,7 @@ router.put('/observacion/', async (req,res) =>{
     await service.ActualizarObservacionEncabezado(data)
     res.json({status:"actualizado"})
 });
-//actualizar cantidad, color, talla, observacion
+//actualizar cantidad, color, talla, observacion , precio
 router.put('/actualizar/', async (req,res) =>{
     const {data} = req.body;
     await service.ActualizarCamposProducto(data)
@@ -73,10 +73,11 @@ router.put('/eliminar/:id',async (req,res)=>{
 //eliminar producto del pedido 
 router.delete('/eliminar/detalle/',(req, res) =>{
     const {data} = req.body;
-    console.log(data)
     service.EliminarDetallePedido(data);
      res.json({status:"Producto eliminado"});
 });
+
+router.get('/carrito/:id',GetCarritoPaginado)
 
 module.exports = router;
 

@@ -34,7 +34,7 @@ class ProductsService {
              WHERE stridcodigo = p.StrIdProducto AND StrDescripcion = '4') AS img4,
             (SELECT intCantidadFinal 
              FROM qrySaldosInv 
-             WHERE strProducto = p.StrIdProducto and IntAno = ${year} and IntPeriodo = ${month}) AS saldoInv
+             WHERE strProducto = p.StrIdProducto and IntAno = ${year} and IntPeriodo = ${month} and intBodega = 01) AS saldoInv
             FROM tblproductos AS p
             INNER JOIN TblProdParametro1 AS pp1 ON pp1.StrIdPParametro1 = p.StrPParametro1
             INNER JOIN TblProdParametro2 AS pp2 ON pp2.StrIdPParametro = p.StrPParametro2
@@ -54,7 +54,7 @@ class ProductsService {
             const fecha = new Date();
             const year = fecha.getFullYear();
             const month = fecha.getMonth() + 1;
-            sqlConnection.query(` SELECT TOP 10 p.StrIdProducto AS referencia, p.StrDescripcion AS descripcion, 
+            sqlConnection.query(` SELECT  p.StrIdProducto AS referencia, p.StrDescripcion AS descripcion, 
             p.strunidad AS UM,p.strauxiliar as cantxEmpaque, p.strparam2 AS Ubicacion,  p.strparam3 AS medida, pp1.StrDescripcion AS sexo, 
             pp2.StrDescripcion AS Material,  pp3.StrDescripcion AS Marca, 
             p.intprecio${idp} as precio, 
@@ -72,12 +72,12 @@ class ProductsService {
              WHERE stridcodigo = p.StrIdProducto AND StrDescripcion = '4') AS img4,
             (SELECT intCantidadFinal 
              FROM qrySaldosInv 
-             WHERE strProducto = p.StrIdProducto and IntAno = ${year} and IntPeriodo = ${month}) AS saldoInv
+             WHERE strProducto = p.StrIdProducto and IntAno = ${year} and IntPeriodo = ${month} and intBodega = 01) AS saldoInv
             FROM tblproductos AS p
             INNER JOIN TblProdParametro1 AS pp1 ON pp1.StrIdPParametro1 = p.StrPParametro1
             INNER JOIN TblProdParametro2 AS pp2 ON pp2.StrIdPParametro = p.StrPParametro2
             INNER JOIN TblProdParametro3 AS pp3 ON pp3.StrIdPParametro = p.StrPParametro3
-            WHERE StrIdProducto LIKE '${id}%' `, async (err, rows) => {
+            WHERE StrIdProducto = '${id}' `, async (err, rows) => {
 
                 if (!err) {
                     resolve(rows.recordset)

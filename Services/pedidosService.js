@@ -61,7 +61,7 @@ class PedidosService {
 
   async ActualizarCamposProducto(data) {
     return new Promise((resolve, reject) => {
-      mysqlConnection.query(`update tbldetallepedidosterminal set intcantidad = ${data.intCantidad} ,strObservacion ='${data.strObservacion}', strColor = '${data.strColor}', strtalla ='${data.strTalla}'where intidpedido = ${data.intIdPedido} and stridproducto = '${data.strIdProducto}'`, async(err, rows, fields) => {
+      mysqlConnection.query(`update tbldetallepedidosterminal set intPrecio=${data.intPrecio}, intcantidad = ${data.intCantidad} ,strObservacion ='${data.strObservacion}', strColor = '${data.strColor}', strtalla ='${data.strTalla}'where intidpedido = ${data.intIdPedido} and stridproducto = '${data.strIdProducto}'`, async(err, rows, fields) => {
         if (!err) {
             let valorTotal = await CalcularTotal(data.intIdPedido)
             mysqlConnection.query(`update tblpedidosTerminal set intValorTotal = ${valorTotal} where intIdPedido = ${data.intIdPedido}`);
@@ -219,7 +219,7 @@ class PedidosService {
 
   async consultarPedidosVendedor(id) {
     return new Promise((resolve, reject) => {
-      mysqlConnection.query("select * from tblpedidos where stridvendedor = (?) and IntEstado != -1  order by intidpedido desc limit 10", [id], (err, rows, fields) => {
+      mysqlConnection.query("select * from tblpedidos where stridvendedor = (?) order by intidpedido desc limit 10", [id], (err, rows, fields) => {
         /* console.log(rows) */
         if (!err) {
           resolve(rows);
@@ -366,6 +366,7 @@ class PedidosService {
       /* const encabezado = pedido.encabezado;
       const detalle = pedido.detalle; */
       let detalle = await consultarDetallePedidosTerminal(idPedido)
+      CambiarEstadoPedidoTerminal(idPedido,2)
       mysqlConnection.query(`SELECT * FROM tblpedidosterminal where intIdPedido = ${idPedido}`,(err,rows,fields)=>{
         if(err){
           reject(err)
@@ -385,20 +386,12 @@ class PedidosService {
           const detquery = "CALL SP_GuardarDetallePedido(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
           detalle.forEach(det => {
-            mysqlConnection.query(detquery, [nropedido, det.strIdProducto, det.strDescripcion, det.intCantidad, det.strUnidadMedida, det.strObservacion, det.intPrecio, det.intPrecioProducto, det.strTalla, det.strCol], (err, rows, fields) => {
+            mysqlConnection.query(detquery, [nropedido, det.strIdProducto, det.strDescripcion, det.intCantidad, det.strUnidadMedida, det.strObservacion, det.intPrecio, det.intPrecioProducto, det.strTalla, det.strColor], (err, rows, fields) => {
               if(err){
                 reject(err)
                 return;
               }
-              CambiarEstadoPedidoTerminal(idPedido,2).then((response)=>{
-                if(response){
-                  resolve()
-                }else{
-                  reject(err)
-                }
-              }).catch((err)=>{
-                reject(err)
-              })
+              resolve()
             })
           })
 
